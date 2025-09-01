@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>Calendrier Sportif 2025</title>
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.8/index.global.min.css" rel="stylesheet" />
+<style>
+body {font-family: Arial, sans-serif;background: #f5f5f5;margin: 0;padding: 8px;}
+.container {display: flex;flex-direction: column;gap: 12px;}
+.panel {background: white;padding: 12px;border-radius: 10px;box-shadow: 0 4px 10px rgba(0,0,0,0.1);}
+h1 {font-size: 18px;margin: 5px 0 8px;text-align: center;}
+#filters {display: flex;flex-wrap: wrap;gap: 8px;justify-content: center;margin-bottom: 8px;}
+.dropdown {position: relative;}
+.dropdown button {background: #3498db;color: white;padding: 8px 12px;border: none;border-radius: 8px;cursor: pointer;font-size: 14px;}
+.dropdown-content {display: none;position: absolute;background: white;border: 1px solid #ddd;border-radius: 8px;box-shadow: 0 4px 8px rgba(0,0,0,0.1);padding: 8px;z-index: 20;max-height: 220px;overflow-y: auto;font-size: 13px;}
+.color-box {width: 14px;height: 14px;border-radius: 3px;display: inline-block;}
+#legend {margin-top: 6px;font-size: 13px;display: flex;flex-wrap: wrap;gap: 6px;justify-content: center;}
+#calendar {width: 100%;height: auto;}
+.fc {font-size: 12px;}
+.tooltip {position: absolute;background: rgba(0,0,0,0.8);color: white;padding: 6px 8px;border-radius: 6px;font-size: 12px;max-width: 220px;z-index: 9999;display: none;}
+.recap-event {padding: 6px;border-bottom: 1px solid #eee;font-size: 13px;}
+.recap-date {font-weight: bold;}
+.recap-sport {margin-top: 2px;display: inline-block;padding: 2px 6px;border-radius: 6px;color: white;font-size: 11px;}
+@media (min-width: 768px) {.container {flex-direction: row;}.panel {flex: 1;}}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="panel">
+<h1>📅 Calendrier Sportif 2025</h1>
+<div id="filters">
+<div class="dropdown"><button id="sportsBtn">Sports</button><div id="sportsMenu" class="dropdown-content"></div></div>
+<div class="dropdown"><button id="countriesBtn">Pays/Continents</button><div id="countriesMenu" class="dropdown-content"></div></div>
+</div>
+<div id="legend"></div>
+<div id="calendar"></div>
+</div>
+<div class="panel">
+<h2 style="font-size:16px; text-align:center;">📋 Récapitulatif</h2>
+<div id="recapList"></div>
+</div>
+</div>
+<div id="tooltip" class="tooltip"></div>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.8/index.global.min.js"></script>
+<script>
+const SPORT_COLOR={football:'#2ecc71',athletics:'#f39c12',handball:'#9b59b6',basketball:'#3498db',tennis:'#e74c3c',cycling:'#1abc9c',football_americain:'#e67e22',rugby:'#c0392b'};
+const ALL_EVENTS=[{title:'Ligue 1 - PSG vs Marseille',start:'2025-01-05',sport:'football',continent:"Europe",country:'France',details:'Classique du football français'},{title:'Roland-Garros',start:'2025-05-25',end:'2025-06-08',sport:'tennis',continent:'Europe',country:'France',details:'Grand Chelem sur terre battue'},{title:'Tour de France',start:'2025-07-05',end:'2025-07-27',sport:'cycling',continent:'Europe',country:'France',details:'Grand Tour'},{title:'Super Bowl',start:'2025-02-02',sport:'football_americain',continent:'Amérique',country:'USA',details:'Finale du championnat de football américain'},{title:'Coupe du Monde de Rugby - Finale',start:'2025-10-26',sport:'rugby',continent:'Europe',country:'France',details:'Compétition internationale'}];
+function mapEvents(events){return events.map(e=>({title:e.title,start:e.start,end:e.end||e.start,backgroundColor:SPORT_COLOR[e.sport]||'#999',borderColor:SPORT_COLOR[e.sport]||'#999',extendedProps:{sport:e.sport,continent:e.continent,country:e.country,details:e.details}}));}
+const calendarEl=document.getElementById('calendar');const tooltip=document.getElementById('tooltip');const recapList=document.getElementById('recapList');
+const calendar=new FullCalendar.Calendar(calendarEl,{schedulerLicenseKey:'GPL-My-Project-Is-Open-Source',initialView:'dayGridMonth',headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,timelineWeek,timelineDay'},firstDay:1,slotDuration:{days:1},events:mapEvents(ALL_EVENTS),height:"auto",eventMouseEnter(info){tooltip.innerHTML=`<b>${info.event.title}</b><br>Sport: ${info.event.extendedProps.sport}<br>Continent: ${info.event.extendedProps.continent}<br>Pays: ${info.event.extendedProps.country}<br>Détails: ${info.event.extendedProps.details}`;tooltip.style.display='block';tooltip.style.left=info.jsEvent.pageX+10+'px';tooltip.style.top=info.jsEvent.pageY+10+'px';},eventMouseLeave(){tooltip.style.display='none';}});
+calendar.render();
+const sportsMenu=document.getElementById('sportsMenu');Object.keys(SPORT_COLOR).sort().forEach(sport=>{const label=document.createElement('label');const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.dataset.sport=sport;checkbox.addEventListener('change',filterEvents);const colorBox=document.createElement('span');colorBox.className='color-box';colorBox.style.background=SPORT_COLOR[sport];label.appendChild(colorBox);label.appendChild(checkbox);label.appendChild(document.createTextNode(' '+sport));sportsMenu.appendChild(label);});
+const continents={};ALL_EVENTS.forEach(e=>{if(!continents[e.continent])continents[e.continent]=new Set();continents[e.continent].add(e.country);});
+const countriesMenu=document.getElementById('countriesMenu');Object.keys(continents).sort().forEach(continent=>{const divContinent=document.createElement('div');divContinent.style.marginBottom="6px";const labelCont=document.createElement('label');const cbCont=document.createElement('input');cbCont.type='checkbox';cbCont.dataset.continent=continent;cbCont.addEventListener('change',(e)=>{const checks=divContinent.querySelectorAll('input[data-country]');checks.forEach(c=>c.checked=e.target.checked);filterEvents();});labelCont.appendChild(cbCont);labelCont.appendChild(document.createTextNode(" 🌍 "+continent));divContinent.appendChild(labelCont);const subDiv=document.createElement('div');subDiv.style.marginLeft="12px";Array.from(continents[continent]).sort().forEach(country=>{const label=document.createElement('label');const cb=document.createElement('input');cb.type='checkbox';cb.dataset.country=country;cb.addEventListener('change',filterEvents);label.appendChild(cb);label.appendChild(document.createTextNode(" "+country));subDiv.appendChild(label);});divContinent.appendChild(subDiv);countriesMenu.appendChild(divContinent);});
+function filterEvents(){const checkedSports=Array.from(sportsMenu.querySelectorAll('input[type=checkbox]')).filter(cb=>cb.checked&&cb.dataset.sport).map(cb=>cb.dataset.sport);const checkedCountries=Array.from(countriesMenu.querySelectorAll('input[data-country]')).filter(cb=>cb.checked).map(cb=>cb.dataset.country);const checkedContinents=Array.from(countriesMenu.querySelectorAll('input[data-continent]')).filter(cb=>cb.checked).map(cb=>cb.dataset.continent);const filtered=ALL_EVENTS.filter(e=>(checkedSports.length===0||checkedSports.includes(e.sport))&&(checkedCountries.length===0||checkedCountries.includes(e.country))&&(checkedContinents.length===0||checkedContinents.includes(e.continent)));calendar.removeAllEvents();calendar.addEventSource(mapEvents(filtered));updateLegend(checkedSports);updateRecap(filtered);}
+function updateLegend(checkedSports){const legend=document.getElementById('legend');legend.innerHTML='';checkedSports.forEach(sport=>{const span=document.createElement('span');span.innerHTML=`<span class="color-box" style="background:${SPORT_COLOR[sport]}"></span> ${sport}`;legend.appendChild(span);});}
+function updateRecap(events){recapList.innerHTML='';events.sort((a,b)=>new Date(a.start)-new Date(b.start)).forEach(e=>{const div=document.createElement('div');div.className='recap-event';div.innerHTML=`<span class="recap-date">${e.start}</span><span class="recap-sport" style="background:${SPORT_COLOR[e.sport]||'#ccc'};">${e.sport}</span><div>${e.title}</div><div>${e.continent} - ${e.country}</div>`;recapList.appendChild(div);});}
+document.querySelectorAll('.dropdown button').forEach(btn=>{btn.addEventListener('click',(e)=>{const menu=e.target.nextElementSibling;menu.style.display=menu.style.display==='block'?'none':'block';});});
+window.addEventListener('click',function(e){document.querySelectorAll('.dropdown').forEach(drop=>{if(!drop.contains(e.target))drop.querySelector('.dropdown-content').style.display='none';});});
+</script>
+</body>
+</html>
