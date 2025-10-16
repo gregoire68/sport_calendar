@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calendrier Sportif 2025 - Timeline avec Filtres</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.8/index.global.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body {overflow: hidden; font-family: Arial, sans-serif; background:#f5f5f5; margin:0; padding:20px; }
+    .container { display: flex; gap: 20px; max-width: 1600px; margin: auto; }
+    .left-panel { flex: 3; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .right-panel { flex: 1; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-height: 800px; overflow-y: auto; }
+    h1 { font-size: 22px; margin-bottom: 10px; }
+    #filters { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 10px; align-items:center; }
+    .dropdown { position: relative; display: inline-block; }
+    .dropdown button { background: #3498db; color: white; padding: 8px 12px; border: none; border-radius: 5px; cursor: pointer; }
+    .dropdown-content { display: none; position: absolute; background: white; border: 1px solid #ddd; border-radius: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); padding: 10px; z-index: 10; max-height: 300px; overflow-y: auto; }
+    .dropdown-content label { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; cursor: pointer; }
+    .color-box { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+    #legend { margin-top: 10px; font-size: 14px; }
+    #legend span { display: inline-flex; align-items: center; margin-right: 10px; }
+    #calendar { max-width: 100%; max-height: 70%; margin-top: 5px; }
+    .fc-event-title { white-space: normal !important; }
+    .tooltip {
+      position: absolute;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 8px;
+      border-radius: 5px;
+      font-size: 13px;
+      max-width: 250px;
+      z-index: 9999;
+      display: none;
+    }
+    .recap-event { padding: 8px; border-bottom: 1px solid #ddd; font-size: 14px; }
+    .recap-event span { display: block; }
+    .recap-date { font-weight: bold; }
+    .recap-sport { color: #888; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="left-panel">
+      <h1>Calendrier Sportif 2025</h1>
+      <div id="filters">
+        <div class="dropdown">
+          <button id="sportsBtn">Sélectionner les sports</button>
+          <div id="sportsMenu" class="dropdown-content"></div>
+        </div>
+        <div class="dropdown">
+          <button id="countriesBtn">Filtrer par continent/pays</button>
+          <div id="countriesMenu" class="dropdown-content"></div>
+        </div>
+        <label style="font-size:14px;">📁 Charger un fichier Excel :
+          <input type="file" id="fileInput" accept=".xlsx,.xls" />
+        </label>
+      </div>
+      <div id="legend"></div>
+      <div id="calendar"></div>
+    </div>
+
+    <div class="right-panel">
+      <h2>Récapitulatif</h2>
+      <div id="recapList"></div>
+    </div>
+  </div>
+
+  <div id="tooltip" class="tooltip"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.8/index.global.min.js"></script>
+  <script>
+    const SPORT_COLOR = {
+      football: '#2ecc71',
+      athletics: '#f39c12',
+      handball: '#9b59b6',
+      basketball: '#3498db',
+      tennis: '#e74c3c',
+      cycling: '#1abc9c',
+      'football USA': '#e67e22',
+      rugby: '#c0392b',
+      formula1: '#34495e',
+      endurance: '#16a085',
+      motogp: '#d35400'
+    };
+
+    const ALL_EVENTS = [];
+
+    function mapEvents(events)
+    {
+      return events.map(e => ({
+        title: e.title,
+        start: e.start,
+        end: e.end || e.start,
+        backgroundColor: SPORT_COLOR[e.sport] || '#95a5a6',
+        borderColor: SPORT_COLOR[e.sport] || '#95a5a6',
+        extendedProps: {
+          sport: e.sport,
+          continent: e.continent,
+          country: e.country,
+          details: e.details
+        }
+      }));
+    }
+
+    const calendarEl = document.getElementById('calendar');
+    const tooltip = document.getElementById('tooltip');
+    const recapList = document.getElementById('recapList');
+
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+      schedulerLicenseKey: 'GPL-My-Project-Is-Open-Source',
+      initialView: 'dayGridMonth',
+      firstDay: 1,
+      height: 600,
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'dayGridMonth,timelineWeek,timelineDay'
+      },
+      views: {
+        dayGridMonth: { type: 'dayGrid', buttonText: 'Mois' },
+        timelineWeek: { type: 'timeline', duration: { days: 7 }, buttonText: 'Semaine' },
+        timelineDay: { type: 'timeline', duration: { days: 1 }, buttonText: 'Jour' }
+      },
+      eventMouseEnter(info) {
+        tooltip.innerHTML = `<b>${info.event.title}</b><br>
+          Sport: ${info.event.extendedProps.sport}<br>
+          Continent: ${info.event.extendedProps.continent}<br>
+          Pays: ${info.event.extendedProps.country}<br>
+          Détails: ${info.event.extendedProps.details}`;
+        tooltip.style.display = 'block';
+        tooltip.style.left = info.jsEvent.pageX + 10 + 'px';
+        tooltip.style.top = info.jsEvent.pageY + 10 + 'px';
+      },
+      eventMouseLeave() { tooltip.style.display = 'none'; }
+    });
+
+    calendar.render();
+
+    // === Excel File Upload ===
+    document.getElementById('fileInput').addEventListener('change', handleFile, false);
+
+    function handleFile(event)
+    {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+        jsonData.forEach(e => {
+          if (typeof e.start === "number") {
+            e.start = XLSX.SSF.format("yyyy-mm-dd", e.start);
+          }
+          if (typeof e.end === "number") {
+            e.end = XLSX.SSF.format("yyyy-mm-dd", e.end);
+          }
+        });
+
+        loadEvents(jsonData);
+
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function loadEvents(data)
+    {
+      ALL_EVENTS.length = 0;
+      data.forEach(e => ALL_EVENTS.push(e));
+
+      generateFilters(ALL_EVENTS);
+      calendar.removeAllEvents();
+      calendar.addEventSource(mapEvents(ALL_EVENTS));
+      updateRecap(ALL_EVENTS);
+    }
+
+    const sportsMenu = document.getElementById('sportsMenu');
+    const countriesMenu = document.getElementById('countriesMenu');
+
+    function generateFilters(events) {
+      sportsMenu.innerHTML = '';
+      countriesMenu.innerHTML = '';
+      const sports = [...new Set(events.map(e => e.sport))];
+      const continents = {};
+      events.forEach(e => {
+        if (!continents[e.continent]) continents[e.continent] = new Set();
+        continents[e.continent].add(e.country);
+      });
+
+      sports.forEach(sport => {
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.dataset.sport = sport;
+        checkbox.addEventListener('change', filterEvents);
+        const colorBox = document.createElement('span');
+        colorBox.className = 'color-box';
+        colorBox.style.background = SPORT_COLOR[sport] || '#95a5a6';
+        label.appendChild(colorBox);
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(' ' + sport));
+        sportsMenu.appendChild(label);
+      });
+
+      Object.keys(continents).forEach(continent => {
+        const divContinent = document.createElement('div');
+        const labelCont = document.createElement('label');
+        const cbCont = document.createElement('input');
+        cbCont.type = 'checkbox';
+        cbCont.dataset.continent = continent;
+        cbCont.addEventListener('change', filterEvents);
+        labelCont.appendChild(cbCont);
+        labelCont.appendChild(document.createTextNode(' 🌍 ' + continent));
+        divContinent.appendChild(labelCont);
+        const subDiv = document.createElement('div');
+        subDiv.style.marginLeft = "15px";
+        Array.from(continents[continent]).forEach(country => {
+          const label = document.createElement('label');
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.dataset.country = country;
+          cb.addEventListener('change', filterEvents);
+          label.appendChild(cb);
+          label.appendChild(document.createTextNode(" " + country));
+          subDiv.appendChild(label);
+        });
+        divContinent.appendChild(subDiv);
+        countriesMenu.appendChild(divContinent);
+      });
+    }
+
+    function filterEvents()
+    {
+      const checkedSports = Array.from(sportsMenu.querySelectorAll('input[type=checkbox]'))
+        .filter(cb => cb.checked && cb.dataset.sport)
+        .map(cb => cb.dataset.sport);
+
+      const checkedCountries = Array.from(countriesMenu.querySelectorAll('input[data-country]'))
+        .filter(cb => cb.checked)
+        .map(cb => cb.dataset.country);
+
+      const checkedContinents = Array.from(countriesMenu.querySelectorAll('input[data-continent]'))
+        .filter(cb => cb.checked)
+        .map(cb => cb.dataset.continent);
+
+      const filtered = ALL_EVENTS.filter(e =>
+        (checkedSports.length === 0 || checkedSports.includes(e.sport)) &&
+        (checkedCountries.length === 0 || checkedCountries.includes(e.country)) &&
+        (checkedContinents.length === 0 || checkedContinents.includes(e.continent))
+      );
+
+      calendar.removeAllEvents();
+      calendar.addEventSource(mapEvents(filtered));
+      updateLegend(checkedSports);
+      updateRecap(filtered);
+    }
+
+    function updateLegend(checkedSports)
+    {
+      const legend = document.getElementById('legend');
+      legend.innerHTML = '';
+      checkedSports.forEach(sport => {
+        const span = document.createElement('span');
+        span.innerHTML = `<span class="color-box" style="background:${SPORT_COLOR[sport] || '#95a5a6'}"></span> ${sport}`;
+        legend.appendChild(span);
+      });
+    }
+
+    function updateRecap(events)
+    {
+      recapList.innerHTML = '';
+      events.sort((a, b) => new Date(a.start) - new Date(b.start))
+        .forEach(e => {
+          const div = document.createElement('div');
+          div.className = 'recap-event';
+          div.innerHTML = `
+            <span class="recap-date">${e.start}</span>
+            <span class="recap-sport" style="background:${SPORT_COLOR[e.sport] || '#ccc'}; color:white; padding:2px 6px; border-radius:4px; display:inline-block;">
+              ${e.sport}
+            </span>
+            <span class="recap-title">${e.title}</span>
+            <span class="recap-lieu">${e.continent} - ${e.country}</span>`;
+          recapList.appendChild(div);
+        });
+    }
+
+    document.querySelectorAll('.dropdown button').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const menu = e.target.nextElementSibling;
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+      });
+    });
+    window.addEventListener('click', e => {
+      document.querySelectorAll('.dropdown').forEach(drop => {
+        if (!drop.contains(e.target)) drop.querySelector('.dropdown-content').style.display = 'none';
+      });
+    });
+  </script>
+</body>
+</html>
