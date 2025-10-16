@@ -12,5 +12,7 @@ Execute the calendar_load_online.html file
 
 ***Tables***
 you need to have the following tables in your file:
+
     . title | start | end | sport | continent | country | details
+
 **Warnings:** *start and end date have to be written this way (DD/MM/YYY)*
